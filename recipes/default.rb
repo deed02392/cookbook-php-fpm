@@ -100,7 +100,25 @@ else
   php_fpm_service_name = "php5-fpm"
 end
 
+if node['php-fpm']['listen_type'] == 'unix' then
+  directory File.dirname(node['php-fpm']['listen']) do
+    owner "root"
+    group "root"
+    mode 00755
+    recursive true
+    action :create
+  end
+end
+
+template "/etc/php5/fpm/pool.d/www.conf" do
+  source "pool.d/default_pool.conf.erb"
+  owner "root"
+  group "root"
+  mode 00644
+  notifies :restart, "service[#{php_fpm_service_name}]", :delayed
+end
+
 service php_fpm_service_name do
-  supports :status => true, :restart => true, :reload => true
+  supports :status => true, :reload => true, :restart => true
   action [ :enable, :start ]
 end

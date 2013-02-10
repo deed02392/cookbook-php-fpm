@@ -1,0 +1,242 @@
+; pool name ('www' here)
+[<%= node['php-fpm']['pool_name'] %>]
+
+; Default Value: none
+<% if !node['php-fpm']['pool_prefix_path'].empty? %>
+prefix = <%= node['php-fpm']['pool_prefix_path'] %>/$pool
+<% end %>
+
+user = <%= node['php-fpm']['user'] %>
+<% if node['php-fpm']['user'] != node['php-fpm']['group'] %>
+group = <%= node['php-fpm']['group'] %>
+<% end %>
+
+; The address on which to accept FastCGI requests.
+; Note: This value is mandatory.
+listen = <%= node['php-fpm']['listen'] %>
+
+; Set listen(2) backlog. A value of '-1' means unlimited.
+; Default Value: 128 (-1 on FreeBSD and OpenBSD)
+<% if node['php-fpm']['listen_backlog'] %>
+listen.backlog = <%= node['php-fpm']['listen_backlog'] %>
+<% end %>
+
+<% if node['php-fpm']['listen_type'] == "unix" %>
+listen.owner = <%= node['php-fpm']['listen_owner'] %>
+listen.group = <%= node['php-fpm']['listen_group'] %>
+listen.mode = <%= node['php-fpm']['listen_mode'] %>
+<% end %>
+
+; List of ipv4 addresses of FastCGI clients which are allowed to connect.
+; Equivalent to the FCGI_WEB_SERVER_ADDRS environment variable in the original
+; PHP FCGI (5.2.2+). Makes sense only with a tcp listening socket. Each address
+; must be separated by a comma. If this value is left blank, connections will be
+; accepted from any ip address.
+; Default Value: any
+<% if node['php-fpm']['listen_type'] == "tcp" %>
+listen.allowed_clients = <%= node['php-fpm']['allowed_clients'].join(',') %>
+<% end %>
+
+; Specify the nice(2) priority to apply to the pool processes (only if set)
+; The value can vary from -19 (highest priority) to 20 (lower priority)
+; Note: - It will only work if the FPM master process is launched as root
+;       - The pool processes will inherit the master process priority
+;         unless it specified otherwise
+; Default Value: no set
+<% if !node['php-fpm']['process_priority'].nil? and
+      node['php-fpm']['process_priority'] >= -19 and 
+      node['php-fpm']['process_priority'] <= 20 %>
+priority = <%= node['php-fpm']['process_priority'] %>
+<% end %>
+
+; Choose how the process manager will control the number of child processes.
+; Possible Values:
+;   static  - a fixed number (pm.max_children) of child processes;
+;   dynamic - the number of child processes are set dynamically based on the
+;             following directives. With this process management, there will be
+;             always at least 1 children.
+;             pm.max_children      - the maximum number of children that can
+;                                    be alive at the same time.
+;             pm.start_servers     - the number of children created on startup.
+;             pm.min_spare_servers - the minimum number of children in 'idle'
+;                                    state (waiting to process). If the number
+;                                    of 'idle' processes is less than this
+;                                    number then some children will be created.
+;             pm.max_spare_servers - the maximum number of children in 'idle'
+;                                    state (waiting to process). If the number
+;                                    of 'idle' processes is greater than this
+;                                    number then some children will be killed.
+;  ondemand - no children are created at startup. Children will be forked when
+;             new requests will connect. The following parameter are used:
+;             pm.max_children           - the maximum number of children that
+;                                         can be alive at the same time.
+;             pm.process_idle_timeout   - The number of seconds after which
+;                                         an idle process will be killed.
+; Note: This value is mandatory.
+pm = <%= node['php-fpm']['process_manager'] %>
+
+; The number of child processes to be created when pm is set to 'static' and the
+; maximum number of child processes when pm is set to 'dynamic' or 'ondemand'.
+; This value sets the limit on the number of simultaneous requests that will be
+; served. Equivalent to the ApacheMaxClients directive with mpm_prefork.
+; Equivalent to the PHP_FCGI_CHILDREN environment variable in the original PHP
+; CGI. The below defaults are based on a server without much resources. Don't
+; forget to tweak pm.* to fit your needs.
+; Note: Used when pm is set to 'static', 'dynamic' or 'ondemand'
+; Note: This value is mandatory.
+<% if node['php-fpm']['process_manager'] == 'dynamic' %>
+pm.max_children = <%= node['php-fpm']['process_max_children'] %>
+
+; The number of child processes created on startup.
+; Note: Used only when pm is set to 'dynamic'
+; Default Value: min_spare_servers + (max_spare_servers - min_spare_servers) / 2
+pm.start_servers = <%= node['php-fpm']['process_start_servers'] %>
+
+; The desired minimum number of idle server processes.
+; Note: Used only when pm is set to 'dynamic'
+; Note: Mandatory when pm is set to 'dynamic'
+pm.min_spare_servers = <%= node['php-fpm']['min_spare_servers'] %>
+
+; The desired maximum number of idle server processes.
+; Note: Used only when pm is set to 'dynamic'
+; Note: Mandatory when pm is set to 'dynamic'
+pm.max_spare_servers = <%= node['php-fpm']['max_spare_servers'] %>
+<% end %>
+
+; The number of seconds after which an idle process will be killed.
+; Note: Used only when pm is set to 'ondemand'
+; Default Value: 10s
+<% if node['php-fpm']['process_manager'] == 'ondemand' %>
+pm.process_idle_timeout = <%= node['php-fpm']['process_idle_timeout'] %>;
+<% end %>
+
+; The number of requests each child process should execute before respawning.
+; This can be useful to work around memory leaks in 3rd party libraries. For
+; endless request processing specify '0'. Equivalent to PHP_FCGI_MAX_REQUESTS.
+; Default Value: 0
+pm.max_requests = <%= node['php-fpm']['process_max_requests'] %>
+
+<% if !node['php-fpm']['process_status_path'].empty? %>
+pm.status_path = <%= node['php-fpm']['process_status_path'] %>
+<% end %>
+
+; The ping URI to call the monitoring page of FPM. If this value is not set, no
+; URI will be recognized as a ping page. This could be used to test from outside
+; that FPM is alive and responding, or to
+; - create a graph of FPM availability (rrd or such);
+; - remove a server from a group if it is not responding (load balancing);
+; - trigger alerts for the operating team (24/7).
+; Note: The value must start with a leading slash (/). The value can be
+;       anything, but it may not be a good idea to use the .php extension or it
+;       may conflict with a real PHP file.
+; Default Value: not set
+<% if !node['php-fpm']['ping_path'].empty? %>
+ping.path = <%= node['php-fpm']['ping_path'] %>
+; This directive may be used to customize the response of a ping request. The
+; response is formatted as text/plain with a 200 response code.
+; Default Value: pong
+ping.response = <%= node['php-fpm']['ping_response'] %>
+<% end %>
+
+<% if !node['php-fpm']['access_log_file'].empty? %>
+; The access log file
+; Default: not set
+access.log = <%= node['php-fpm']['access_log_file'] %>
+; Default: "%R - %u %t \"%m %r\" %s"
+access.format = "<%= node['php-fpm']['access_log_format'] %>"
+<% end %>
+
+; The timeout for serving a single request after which a PHP backtrace will be
+; dumped to the 'slowlog' file. A value of '0s' means 'off'.
+; Available units: s(econds)(default), m(inutes), h(ours), or d(ays)
+; Default Value: 0
+<% if !node['php-fpm']['slow_log_timeout'].empty? %>
+request_slowlog_timeout = <%= node['php-fpm']['slow_log_timeout'] %>
+slowlog = <%= node['php-fpm']['slow_log'] %>
+<% end %>
+
+; The timeout for serving a single request after which the worker process will
+; be killed. This option should be used when the 'max_execution_time' ini option
+; does not stop script execution for some reason. A value of '0' means 'off'.
+; Available units: s(econds)(default), m(inutes), h(ours), or d(ays)
+; Default Value: 0
+<% if node['php-fpm']['terminate_timeout'] %>
+request_terminate_timeout = <%= node['php-fpm']['terminate_timeout'] %>
+<% end %>
+
+; Set open file descriptor rlimit.
+; Default Value: system defined value
+<% if !node['php-fpm']['rlimit_files'].empty? %>
+rlimit_files = <%= node['php-fpm']['rlimit_files'] %>
+<% end %>
+
+; Set max core size rlimit.
+; Possible Values: 'unlimited' or an integer greater or equal to 0
+; Default Value: system defined value
+<% if !node['php-fpm']['rlimit_core'].empty? %>
+rlimit_core = <%= node['php-fpm']['rlimit_core'] %>
+<% end %>
+
+<% if !node['php-fpm']['chroot_path'].empty? %>
+chroot = <%= node['php-fpm']['chroot_path'] %>
+<% end %>
+
+; Chdir to this directory at the start.
+; Note: relative path can be used.
+; Default Value: current directory or / when chroot
+<% if !node['php-fpm']['chdir_path'].empty? %>
+chdir = <%= node['php-fpm']['chdir_path'] %>
+<% end %>
+
+; Redirect worker stdout and stderr into main error log. If not set, stdout and
+; stderr will be redirected to /dev/null according to FastCGI specs.
+; Note: on highloaded environement, this can cause some delay in the page
+; process time (several ms).
+; Default Value: no
+<% if !node['php-fpm']['redirect_worker_output'].empty? %>
+catch_workers_output = <%= node['php-fpm']['redirect_worker_output'] %>
+<% end %>
+
+; Limits the extensions of the main script FPM will allow to parse. This can
+; prevent configuration mistakes on the web server side. You should only limit
+; FPM to .php extensions to prevent malicious users to use other extensions to
+; exectute php code.
+; Note: set an empty value to allow all extensions.
+; Default Value: .php
+<% if !node['php-fpm']['limit_extensions'].empty? %>
+security.limit_extensions = <%= node['php-fpm']['limit_extensions'].join(' ') %>
+<% end %>
+
+; Pass environment variables like LD_LIBRARY_PATH. All $VARIABLEs are taken from
+; the current environment.
+; Default Value: clean env
+;env[HOSTNAME] = $HOSTNAME
+;env[PATH] = /usr/local/bin:/usr/bin:/bin
+;env[TMP] = /tmp
+;env[TMPDIR] = /tmp
+;env[TEMP] = /tmp
+
+; Additional php.ini defines, specific to this pool of workers. These settings
+; overwrite the values previously defined in the php.ini. The directives are the
+; same as the PHP SAPI:
+;   php_value/php_flag             - you can set classic ini defines which can
+;                                    be overwritten from PHP call 'ini_set'.
+;   php_admin_value/php_admin_flag - these directives won't be overwritten by
+;                                     PHP call 'ini_set'
+; For php_*flag, valid values are on, off, 1, 0, true, false, yes or no.
+
+; Defining 'extension' will load the corresponding shared extension from
+; extension_dir. Defining 'disable_functions' or 'disable_classes' will not
+; overwrite previously defined php.ini values, but will append the new value
+; instead.
+
+; Note: path INI options can be relative and will be expanded with the prefix
+; (pool, global or /usr)
+
+; Default Value: nothing is defined by default except the values in php.ini and
+;                specified at startup with the -d argument
+;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
+;php_flag[display_errors] = off
+;php_admin_value[error_log] = /var/log/fpm-php.www.log
+;php_admin_flag[log_errors] = on
+;php_admin_value[memory_limit] = 32M
